@@ -14,14 +14,16 @@ open GeneticSharpImplementations.Fitnesses
 open GeneticSharpUtils
 open System.Collections.Generic
 
-type GAResult (GA: GeneticAlgorithm, Termination: int, Seed: int, BestChromosomes: List<IChromosome>) =
+type GAResult (GA: GeneticAlgorithm, Termination: int, Seed: int, BestChromosomes: list<IChromosome>) =
     member this.GA = GA
     member this.Termination = Termination
     member this.Seed = Seed
-    member this.BestChromosomes = BestChromosomes 
-    member this.printInitial () = sprintf "{ Seed: %i, termination: %i}" this.Seed this.Termination
-    member this.printResult () = sprintf "{ termination: %i}" this.GA.GenerationsNumber
-    override this.ToString () = sprintf "{ HashCode: %i, initial: %s, result: %s }" (this.GetHashCode()) (this.printInitial()) (this.printResult())
+    member this.BestChromosomes = BestChromosomes
+    member this.BestFitness = (this.GA.BestChromosome.Fitness.GetValueOrDefault())
+    member this.BestGenes = (this.GA.BestChromosome.GetGenes())
+    member this.printInitial = sprintf "{ Seed: %i, termination: %i}" this.Seed this.Termination
+    member this.printResult = sprintf "{ termination: %i}" this.GA.GenerationsNumber
+    override this.ToString () = sprintf "{ HashCode: %i, initial: %s, result: %s }" (this.GetHashCode()) this.printInitial this.printResult
 
 let CreateGA seed termination : GAResult =
     RandomizationProvider.Current <- FastRandomRandomizationWithSeed()
@@ -35,8 +37,8 @@ let CreateGA seed termination : GAResult =
     let ga = GeneticAlgorithm(population, fitness, selection, crossover, mutation)
     ga.Termination <- GenerationNumberTermination(termination)
     
-    let bestChromosomes = new List<IChromosome>()
-    let handler = EventHandler( fun sender eventArgs -> let g: GeneticAlgorithm =  sender :?> GeneticAlgorithm in  bestChromosomes.Add(g.BestChromosome))
+    let mutable bestChromosomes = []
+    let handler = EventHandler( fun sender eventArgs -> let g: GeneticAlgorithm =  sender :?> GeneticAlgorithm in  bestChromosomes <- bestChromosomes@[g.BestChromosome])
     ga.GenerationRan.AddHandler(handler)
     ga.Start()
     let res = GAResult(ga, termination, seed, bestChromosomes)
@@ -55,11 +57,12 @@ let GAGen : Gen<GAResult> =
     Gen.map2 CreateGA seedGen terminationGen
 ;;
 
-let GAClones : Gen<GAResult * GAResult> =
-    let IdenticalGARes (gaRes:GAResult) =
+
+let TwinGAGen : Gen<GAResult * GAResult> =
+    let CreateTwin (gaRes:GAResult) =
         let gaRes2 = CreateGA (gaRes.Seed) (gaRes.Termination) in
         (gaRes, gaRes2)
-    in Gen.map IdenticalGARes GAGen
+    in Gen.map CreateTwin GAGen
 ;;
 
 let CheckIncreasingFitness l =
@@ -78,15 +81,6 @@ let CheckIncreasingFitness l =
     | e::l -> (Next l e)
 ;;
 
-(*
- * List to list is created to convert mutable List to immutable list 
- *)
-let rec ListToList (l:List<IChromosome>) (acc:list<IChromosome>)=
-    match l.Count with
-    | 0 -> acc
-    | i -> let x = l.[0] in let _ =  l.RemoveAt(0) in ListToList l (acc@[x])
-;;
-
 type MyGenerators =
   static member GeneticAlgorithm() =
       {new Arbitrary<GAResult>() with
@@ -94,7 +88,7 @@ type MyGenerators =
           override x.Shrinker t = Seq.empty }
   static member IdenticalGeneticAlgorithmPair() =
       {new Arbitrary<Tuple<GAResult, GAResult>>() with
-          override x.Generator = GAClones
+          override x.Generator = TwinGAGen
           override x.Shrinker t = Seq.empty }
 
 // Custom comparison. This compares and print the left and right sides. 
@@ -102,13 +96,15 @@ let (.=.) left right = left = right |@ sprintf "%A = %A" left right
 let (.>=.) left right = left >= right |@ sprintf "%A >= %A" left right
 let (.<=.) left right = left <= right |@ sprintf "%A <= %A" left right
 
-
-
 type GAProperties =
-  static member ``Number of generations match the termination criteria`` (gaRes:GAResult) =  gaRes.Termination .=. gaRes.GA.GenerationsNumber
-  static member ``Two GA's with the same inputs should result in two solutions with the same fitness`` (g1:GAResult, g2:GAResult) =  g1.GA.BestChromosome.Fitness.GetValueOrDefault() .=. g2.GA.BestChromosome.Fitness.GetValueOrDefault()
-  static member ``Two GA's with the same inputs should result in two identical best genes`` (g1:GAResult, g2:GAResult) =  g1.GA.BestChromosome.GetGenes() .=. g2.GA.BestChromosome.GetGenes()
-  static member ``N+1 generation has same or better fitness than N`` (gaRes:GAResult) = let l = ListToList (gaRes.BestChromosomes) [] in CheckIncreasingFitness l
+  static member ``Number of generations match the termination criteria``
+    (gaRes:GAResult) =  gaRes.Termination .=. gaRes.GA.GenerationsNumber
+  static member ``Two GA's with the same inputs should result in two solutions with the same fitness``
+    (g1:GAResult, g2:GAResult) =  g1.BestFitness .=. g2.BestFitness
+  static member ``Two GA's with the same inputs should result in two identical best genes``
+    (g1:GAResult, g2:GAResult) = g1.BestGenes .=. g2.BestGenes
+  static member ``N+1 generation has same or better fitness than N``
+    (gaRes:GAResult) = CheckIncreasingFitness gaRes.BestChromosomes
 ;;
 
 
