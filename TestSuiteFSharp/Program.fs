@@ -66,26 +66,24 @@ let TwinGAGen : Gen<GAResult * GAResult> =
 ;;
 
 let CheckIncreasingFitness l =
-    let rec Next (l:list<IChromosome>) (lastGen:IChromosome) =
-        match l with
-        | []  -> true
-        | e::l  -> if (e.Fitness.GetValueOrDefault() - lastGen.Fitness.GetValueOrDefault()) >= 0.
-                    then (Next l e)
-                    else let _ = printf "New should be grater than old. Actual: \n Old best = %f |  New best = %f \n"
-                                        (lastGen.Fitness.GetValueOrDefault())
-                                        (e.Fitness.GetValueOrDefault())in false
+    let rec Next (remaining:list<IChromosome>) (lastGen:IChromosome) i=
+        match remaining with
+        | []  -> []
+        | e::l1  -> if (e.Fitness.GetValueOrDefault() - lastGen.Fitness.GetValueOrDefault()) >= 0.
+                    then (Next l1 e (i+1))
+                    else (List.take (i+1) l) 
     in
     match l with
-    | [] -> true
-    | e::[] -> true
-    | e::l -> (Next l e)
+    | [] -> []
+    | e::[] -> []
+    | e::l1 -> (Next l1 e 1)
 ;;
 
 type MyGenerators =
   static member GeneticAlgorithm() =
       {new Arbitrary<GAResult>() with
           override x.Generator = GAGen
-          override x.Shrinker t = Seq.empty }
+          override x.Shrinker t = Seq.empty}
   static member IdenticalGeneticAlgorithmPair() =
       {new Arbitrary<Tuple<GAResult, GAResult>>() with
           override x.Generator = TwinGAGen
@@ -93,18 +91,17 @@ type MyGenerators =
 
 // Custom comparison. This compares and print the left and right sides. 
 let (.=.) left right = left = right |@ sprintf "%A = %A" left right
-let (.>=.) left right = left >= right |@ sprintf "%A >= %A" left right
-let (.<=.) left right = left <= right |@ sprintf "%A <= %A" left right
+let (.==.) left right = let i = (List.length left) in left = right |@ sprintf "Fitness decreased at index: %i \nFor generations 0-%i: \n %A "  i i left 
 
 type GAProperties =
-  static member ``Number of generations match the termination criteria``
+  static member ``P1 - Number of generations match the termination criteria``
     (gaRes:GAResult) =  gaRes.Termination .=. gaRes.GA.GenerationsNumber
-  static member ``Two GA's with the same inputs should result in two solutions with the same fitness``
+  static member ``P2 - N+1 generation has same or better fitness than N``
+    (gaRes:GAResult) = (CheckIncreasingFitness gaRes.BestChromosomes) .==. []
+  static member ``P3 - Two GA's with the same inputs should result in two solutions with the same fitness``
     (g1:GAResult, g2:GAResult) =  g1.BestFitness .=. g2.BestFitness
-  static member ``Two GA's with the same inputs should result in two identical best genes``
+  static member ``P4 - Two GA's with the same inputs should result in two identical best genes``
     (g1:GAResult, g2:GAResult) = g1.BestGenes .=. g2.BestGenes
-  static member ``N+1 generation has same or better fitness than N``
-    (gaRes:GAResult) = CheckIncreasingFitness gaRes.BestChromosomes
 ;;
 
 
