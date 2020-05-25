@@ -9,7 +9,7 @@ namespace GeneticSharpImplementations.Fitnesses
         {
             var x = ((IntegerChromosome) chromosome).ToInteger();
             
-            return x<0? x: x;
+            return x<0? 0: x;
         }
     }
 }
