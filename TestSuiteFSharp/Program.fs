@@ -159,12 +159,12 @@ type GAProperties =
 [<EntryPoint>]
 let main argv =
     
-    printfn "####################### OWN IMPL #######################"
+    printfn "####################### IMP Test #######################"
     // Run for own impl
     Arb.register<ImpGenerators>()
     Check.All<GAProperties> ({Config.Quick with MaxTest = 100})
     
-    printfn "####################### TSP TEMPLATE #######################"
+    printfn "####################### TSP Test #######################"
     // Run for TSP
     Arb.register<TspGenerators>()
     Check.All<GAProperties> ({Config.Quick with MaxTest = 100})
