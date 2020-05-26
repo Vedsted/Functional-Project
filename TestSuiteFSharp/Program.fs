@@ -15,11 +15,11 @@ open GeneticSharpImplementations.Fitnesses
 open GeneticSharpUtils
 open System.Collections.Generic
 
-type GAResult (GA: GeneticAlgorithm, Termination: int, Seed: int, BestChromosomes: list<IChromosome>) =
+type GAResult (GA: GeneticAlgorithm, Termination: int, Seed: int, HookChromosomes: list<IChromosome>) =
     member this.GA = GA
     member this.Termination = Termination
     member this.Seed = Seed
-    member this.BestChromosomes = BestChromosomes
+    member this.HookChromosomes = HookChromosomes
     member this.BestFitness = (this.GA.BestChromosome.Fitness.GetValueOrDefault())
     member this.BestGenes = (this.GA.BestChromosome.GetGenes())
     member this.printInitial = sprintf "{ Seed: %i, termination: %i}" this.Seed this.Termination
@@ -38,11 +38,11 @@ let CreateGA seed termination : GAResult =
     let ga = GeneticAlgorithm(population, fitness, selection, crossover, mutation)
     ga.Termination <- GenerationNumberTermination(termination)
     
-    let mutable bestChromosomes : list<IChromosome>= []
-    let handler = EventHandler( fun sender eventArgs -> let g: GeneticAlgorithm =  sender :?> GeneticAlgorithm in  bestChromosomes <- bestChromosomes@[g.BestChromosome])
+    let mutable hookChromosomes : list<IChromosome>= []
+    let handler = EventHandler( fun sender eventArgs -> let g: GeneticAlgorithm =  sender :?> GeneticAlgorithm in  hookChromosomes <- hookChromosomes@[g.BestChromosome])
     ga.GenerationRan.AddHandler(handler)
     ga.Start()
-    let res = GAResult(ga, termination, seed, bestChromosomes)
+    let res = GAResult(ga, termination, seed, hookChromosomes)
     res
 ;;
 
@@ -57,12 +57,12 @@ let CreateTSP seed termination =
     let chromosome = TspChromosome(fitness.Cities.Count)
     let population = Population(50, 70, chromosome)
     let ga = GeneticAlgorithm(population, fitness, selection, crossover, mutation)
-    let mutable bestChromosomes : list<IChromosome> = []
-    let handler = EventHandler( fun sender eventArgs -> let g: GeneticAlgorithm =  sender :?> GeneticAlgorithm in  bestChromosomes <- bestChromosomes@[g.BestChromosome])
+    let mutable hookChromosomes : list<IChromosome> = []
+    let handler = EventHandler( fun sender eventArgs -> let g: GeneticAlgorithm =  sender :?> GeneticAlgorithm in  hookChromosomes <- hookChromosomes@[g.BestChromosome])
     ga.GenerationRan.AddHandler(handler)
     ga.Termination <- GenerationNumberTermination(termination)
     ga.Start()
-    let res = GAResult(ga, termination, seed, bestChromosomes)
+    let res = GAResult(ga, termination, seed, hookChromosomes)
     res
 ;;
 
@@ -103,7 +103,7 @@ let TwinTspGen : Gen<GAResult * GAResult> =
     in Gen.map CreateTwin TspGen
 ;;
 
-type MyGenerators =
+type ImpGenerators =
   static member GeneticAlgorithm() =
       {new Arbitrary<GAResult>() with
           override x.Generator = GAGen
@@ -147,7 +147,7 @@ type GAProperties =
   static member ``P1 - Number of generations match the termination criteria``
     (gaRes:GAResult) =  gaRes.Termination .=. gaRes.GA.GenerationsNumber
   static member ``P2 - N+1 generation has same or better fitness than N``
-    (gaRes:GAResult) = gaRes.BestChromosomes .==. (List.sortBy (fun e -> e.Fitness.GetValueOrDefault()) gaRes.BestChromosomes)
+    (gaRes:GAResult) = gaRes.HookChromosomes .==. (List.sortBy (fun e -> e.Fitness.GetValueOrDefault()) gaRes.HookChromosomes)
   static member ``P3 - Two GA's with the same inputs should result in two solutions with the same fitness``
     (g1:GAResult, g2:GAResult) = g1.BestFitness .=. g2.BestFitness
   static member ``P4 - Two GA's with the same inputs should result in two identical best genes``
@@ -158,15 +158,15 @@ type GAProperties =
 
 [<EntryPoint>]
 let main argv =
-    (*
+    
     printfn "####################### OWN IMPL #######################"
     // Run for own impl
-    Arb.register<MyGenerators>()
-    Check.All<GAProperties> ({Config.Quick with MaxTest = 10000})
-    *)
+    Arb.register<ImpGenerators>()
+    Check.All<GAProperties> ({Config.Quick with MaxTest = 100})
+    
     printfn "####################### TSP TEMPLATE #######################"
     // Run for TSP
     Arb.register<TspGenerators>()
-    Check.All<GAProperties> ({Config.Quick with MaxTest = 10000})
+    Check.All<GAProperties> ({Config.Quick with MaxTest = 100})
     
     0 // return an integer exit code
