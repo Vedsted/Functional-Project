@@ -107,7 +107,7 @@ let main argv =
     // Comment in for running 'MaxTest' times with random seeds and terminations
     //Check.All<GAProperties> ({Config.Verbose with MaxTest = 100})
     
-    // For manual checking with user defined termination and seed:
+    // For manual testing with user defined termination and seed:
     let termination = 500
     let seed = 781433289
     let res = CreateTSP seed termination
