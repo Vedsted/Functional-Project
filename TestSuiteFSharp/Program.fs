@@ -38,7 +38,7 @@ let CreateGA seed termination : GAResult =
     let ga = GeneticAlgorithm(population, fitness, selection, crossover, mutation)
     ga.Termination <- GenerationNumberTermination(termination)
     
-    let mutable bestChromosomes = []
+    let mutable bestChromosomes : list<IChromosome>= []
     let handler = EventHandler( fun sender eventArgs -> let g: GeneticAlgorithm =  sender :?> GeneticAlgorithm in  bestChromosomes <- bestChromosomes@[g.BestChromosome])
     ga.GenerationRan.AddHandler(handler)
     ga.Start()
@@ -47,8 +47,8 @@ let CreateGA seed termination : GAResult =
 ;;
 
 let CreateTSP seed termination =
-    //RandomizationProvider.Current <- FastRandomRandomizationWithSeed()
-    //FastRandomRandomizationWithSeed.setSeed(seed)
+    RandomizationProvider.Current <- FastRandomRandomizationWithSeed()
+    FastRandomRandomizationWithSeed.setSeed(seed)
     
     let selection = EliteSelection()
     let crossover = OrderedCrossover()
@@ -57,7 +57,7 @@ let CreateTSP seed termination =
     let chromosome = TspChromosome(fitness.Cities.Count)
     let population = Population(50, 70, chromosome)
     let ga = GeneticAlgorithm(population, fitness, selection, crossover, mutation)
-    let mutable bestChromosomes = []
+    let mutable bestChromosomes : list<IChromosome> = []
     let handler = EventHandler( fun sender eventArgs -> let g: GeneticAlgorithm =  sender :?> GeneticAlgorithm in  bestChromosomes <- bestChromosomes@[g.BestChromosome])
     ga.GenerationRan.AddHandler(handler)
     ga.Termination <- GenerationNumberTermination(termination)
@@ -89,8 +89,8 @@ let TspGen : Gen<GAResult> =
     let terminationMin = 1
     let terminationMax = 1000
     let terminationGen = Gen.choose (terminationMin,terminationMax)
-    let seedMin = -290063336 //Int32.MinValue
-    let seedMax = -290063336 //Int32.MaxValue
+    let seedMin = Int32.MinValue
+    let seedMax = Int32.MaxValue
     let seedGen = Gen.choose (seedMin,seedMax)
     Gen.map2 CreateTSP seedGen terminationGen
 ;;
@@ -147,7 +147,7 @@ type GAProperties =
   static member ``P1 - Number of generations match the termination criteria``
     (gaRes:GAResult) =  gaRes.Termination .=. gaRes.GA.GenerationsNumber
   static member ``P2 - N+1 generation has same or better fitness than N``
-    (gaRes:GAResult) = let _ = printfn "Best Result from GA: %s\nBest Result form Hook: %s" (gaRes.GA.BestChromosome.ToString()) ((List.last gaRes.BestChromosomes).ToString()) in gaRes.BestChromosomes .==. (List.sortBy (fun e -> e.Fitness.GetValueOrDefault()) gaRes.BestChromosomes)
+    (gaRes:GAResult) = gaRes.BestChromosomes .==. (List.sortBy (fun e -> e.Fitness.GetValueOrDefault()) gaRes.BestChromosomes)
   static member ``P3 - Two GA's with the same inputs should result in two solutions with the same fitness``
     (g1:GAResult, g2:GAResult) = g1.BestFitness .=. g2.BestFitness
   static member ``P4 - Two GA's with the same inputs should result in two identical best genes``
@@ -159,18 +159,14 @@ type GAProperties =
 [<EntryPoint>]
 let main argv =
     (*
-    
-    
-    
     printfn "####################### OWN IMPL #######################"
     // Run for own impl
     Arb.register<MyGenerators>()
-    Check.All<GAProperties> ({Config.Quick with MaxTest = 10})
+    Check.All<GAProperties> ({Config.Quick with MaxTest = 10000})
     *)
     printfn "####################### TSP TEMPLATE #######################"
     // Run for TSP
     Arb.register<TspGenerators>()
-    //Check.All<GAProperties> ({Config.Verbose with MaxTest = 100})
-    Check.Quick GAProperties.``P2 - N+1 generation has same or better fitness than N``
+    Check.All<GAProperties> ({Config.Quick with MaxTest = 10000})
     
     0 // return an integer exit code

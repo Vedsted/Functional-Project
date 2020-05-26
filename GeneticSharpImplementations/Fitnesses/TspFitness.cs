@@ -11,6 +11,8 @@ namespace GeneticSharpImplementations.Fitnesses
 {
     /// <summary>
     /// Travelling Salesman Problem fitness function.
+    ///     Copied directly from:
+    ///         https://github.com/giacomelli/GeneticSharp/blob/master/src/GeneticSharp.Extensions/Tsp/TspFitness.cs
     /// <remarks>
     /// The travelling salesman problem (TSP) or travelling salesperson problem asks the following question: 
     /// Given a list of cities and the distances between each pair of cities, what is the shortest possible 
@@ -150,6 +152,8 @@ namespace GeneticSharpImplementations.Fitnesses
     
     /// <summary>
     /// Travelling Salesman city.
+    /// Implementation copied from:
+    ///     https://github.com/giacomelli/GeneticSharp/blob/master/src/GeneticSharp.Extensions/Tsp/TspCity.cs
     /// </summary>
     public class TspCity
     {
